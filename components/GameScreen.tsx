@@ -8,7 +8,6 @@ import {
   EXPLOSION_DURATION_MS,
   BOMB_RANGE,
   GAME_TICK_MS,
-  ENEMY_MOVE_INTERVAL,
 } from "../constants";
 
 interface GameScreenProps {
@@ -25,8 +24,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [bombs, setBombs] = useState<Bomb[]>([]);
   const [explosions, setExplosions] = useState<Position[]>([]);
-  const [gameState, setGameState] = useState<GameState>(GameState.PLAYING);
+  const [isGameOver, setIsGameOver] = useState(false);
+  const [isWon, setIsWon] = useState(false);
   const gameLoopRef = useRef<number>();
+  const gameStateRef = useRef({ isGameOver: false, isWon: false });
 
   // Initialize game grid
   const initializeGrid = useCallback(() => {
@@ -167,6 +168,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
 
   // Game loop
   const gameLoop = useCallback(() => {
+    if (gameStateRef.current.isGameOver || gameStateRef.current.isWon) {
+      return;
+    }
+
     setGrid((currentGrid) => {
       setEnemies((currentEnemies) => {
         setBombs((currentBombs) => {
@@ -198,13 +203,6 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
 
             newBombs = newBombs.filter((bomb) => bomb.timer > 0);
 
-            // Update explosion timers
-            if (newExplosions.length > 0) {
-              setTimeout(() => {
-                setExplosions([]);
-              }, EXPLOSION_DURATION_MS);
-            }
-
             // Move enemies
             newEnemies = moveEnemies(newGrid, newEnemies);
 
@@ -218,9 +216,10 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
               const playerHit = explosionPositions.includes(
                 `${currentPlayerPosition.row},${currentPlayerPosition.col}`
               );
-              if (playerHit) {
-                setGameState(GameState.GAME_OVER);
-                onGameOver();
+              if (playerHit && !gameStateRef.current.isGameOver) {
+                gameStateRef.current.isGameOver = true;
+                setIsGameOver(true);
+                setTimeout(() => onGameOver(), 100);
               }
               return currentPlayerPosition;
             });
@@ -234,9 +233,17 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
             );
 
             // Check win condition
-            if (newEnemies.length === 0) {
-              setGameState(GameState.WIN);
-              onWin();
+            if (newEnemies.length === 0 && !gameStateRef.current.isWon) {
+              gameStateRef.current.isWon = true;
+              setIsWon(true);
+              setTimeout(() => onWin(), 100);
+            }
+
+            // Clear explosions after duration
+            if (newExplosions.length > 0) {
+              setTimeout(() => {
+                setExplosions([]);
+              }, EXPLOSION_DURATION_MS);
             }
 
             return newExplosions;
@@ -252,7 +259,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
   // Handle keyboard input
   const handleKeyPress = useCallback(
     (event: KeyboardEvent) => {
-      if (gameState !== GameState.PLAYING) return;
+      if (isGameOver || isWon) return;
 
       const newPosition = { ...playerPosition };
 
@@ -297,7 +304,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
         setPlayerPosition(newPosition);
       }
     },
-    [playerPosition, grid, gameState, isValidPosition]
+    [playerPosition, grid, isGameOver, isWon, isValidPosition]
   );
 
   // Initialize game
@@ -309,12 +316,14 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
     setPlayerPosition({ row: 1, col: 1 });
     setBombs([]);
     setExplosions([]);
-    setGameState(GameState.PLAYING);
-  }, []);
+    setIsGameOver(false);
+    setIsWon(false);
+    gameStateRef.current = { isGameOver: false, isWon: false };
+  }, [initializeGrid, initializeEnemies]);
 
   // Start game loop
   useEffect(() => {
-    if (gameState === GameState.PLAYING && grid.length > 0) {
+    if (grid.length > 0 && !isGameOver && !isWon) {
       gameLoopRef.current = window.setInterval(gameLoop, GAME_TICK_MS);
     } else {
       if (gameLoopRef.current) {
@@ -329,7 +338,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
         gameLoopRef.current = undefined;
       }
     };
-  }, [gameState, gameLoop, grid.length]);
+  }, [grid.length, isGameOver, isWon, gameLoop]);
 
   // Add keyboard event listener
   useEffect(() => {
@@ -385,6 +394,8 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
       <div className="mb-4 text-center">
         <h2 className="text-2xl font-bold text-cyan-400 mb-2">🎮 ゲーム中</h2>
         <p className="text-pink-300">残り敵: {enemies.length}体</p>
+        {isGameOver && <p className="text-red-400">ゲームオーバー！</p>}
+        {isWon && <p className="text-green-400">勝利！</p>}
       </div>
 
       <div
