@@ -173,22 +173,27 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
     }
 
     setGrid((currentGrid) => {
+      const newGrid = [...currentGrid];
+
       setEnemies((currentEnemies) => {
+        const newEnemies = [...currentEnemies];
+
         setBombs((currentBombs) => {
+          const newBombs = [...currentBombs];
+
           setExplosions((currentExplosions) => {
-            let newGrid = [...currentGrid];
-            let newEnemies = [...currentEnemies];
-            let newBombs = [...currentBombs];
-            let newExplosions = [...currentExplosions];
+            const newExplosions = [...currentExplosions];
 
             // Update bomb timers
-            newBombs = newBombs.map((bomb) => ({
+            const updatedBombs = newBombs.map((bomb) => ({
               ...bomb,
               timer: bomb.timer - GAME_TICK_MS,
             }));
 
             // Explode bombs
-            const bombsToExplode = newBombs.filter((bomb) => bomb.timer <= 0);
+            const bombsToExplode = updatedBombs.filter(
+              (bomb) => bomb.timer <= 0
+            );
             for (const bomb of bombsToExplode) {
               const explosionPositions = explodeBomb(bomb, newGrid);
               newExplosions.push(...explosionPositions);
@@ -201,10 +206,12 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
               });
             }
 
-            newBombs = newBombs.filter((bomb) => bomb.timer > 0);
+            const remainingBombs = updatedBombs.filter(
+              (bomb) => bomb.timer > 0
+            );
 
             // Move enemies
-            newEnemies = moveEnemies(newGrid, newEnemies);
+            const movedEnemies = moveEnemies(newGrid, newEnemies);
 
             // Check collisions
             const explosionPositions = newExplosions.map(
@@ -225,7 +232,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
             });
 
             // Check if enemies are hit
-            newEnemies = newEnemies.filter(
+            const survivingEnemies = movedEnemies.filter(
               (enemy) =>
                 !explosionPositions.includes(
                   `${enemy.position.row},${enemy.position.col}`
@@ -233,7 +240,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
             );
 
             // Check win condition
-            if (newEnemies.length === 0 && !gameStateRef.current.isWon) {
+            if (survivingEnemies.length === 0 && !gameStateRef.current.isWon) {
               gameStateRef.current.isWon = true;
               setIsWon(true);
               setTimeout(() => onWin(), 100);
@@ -246,12 +253,19 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
               }, EXPLOSION_DURATION_MS);
             }
 
+            // Update states
+            setBombs(remainingBombs);
+            setEnemies(survivingEnemies);
+
             return newExplosions;
           });
+
           return newBombs;
         });
+
         return newEnemies;
       });
+
       return newGrid;
     });
   }, [explodeBomb, moveEnemies, onWin, onGameOver]);
