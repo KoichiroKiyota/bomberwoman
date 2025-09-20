@@ -309,8 +309,13 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
 
   // Initialize game
   useEffect(() => {
+    console.log("GameScreen: Initializing game...");
     const initialGrid = initializeGrid();
     const initialEnemies = initializeEnemies(initialGrid);
+    console.log(
+      "GameScreen: Grid initialized, enemies:",
+      initialEnemies.length
+    );
     setGrid(initialGrid);
     setEnemies(initialEnemies);
     setPlayerPosition({ row: 1, col: 1 });
@@ -319,13 +324,22 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
     setIsGameOver(false);
     setIsWon(false);
     gameStateRef.current = { isGameOver: false, isWon: false };
+    console.log("GameScreen: Game initialized successfully");
   }, [initializeGrid, initializeEnemies]);
 
   // Start game loop
   useEffect(() => {
+    console.log("GameScreen: Game loop effect triggered", {
+      gridLength: grid.length,
+      isGameOver,
+      isWon,
+    });
+
     if (grid.length > 0 && !isGameOver && !isWon) {
+      console.log("GameScreen: Starting game loop");
       gameLoopRef.current = window.setInterval(gameLoop, GAME_TICK_MS);
     } else {
+      console.log("GameScreen: Stopping game loop");
       if (gameLoopRef.current) {
         clearInterval(gameLoopRef.current);
         gameLoopRef.current = undefined;
@@ -333,6 +347,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
     }
 
     return () => {
+      console.log("GameScreen: Cleaning up game loop");
       if (gameLoopRef.current) {
         clearInterval(gameLoopRef.current);
         gameLoopRef.current = undefined;
