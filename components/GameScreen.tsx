@@ -214,14 +214,16 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
             );
 
             // Check if player is hit
-            const playerHit = explosionPositions.includes(
-              `${playerPosition.row},${playerPosition.col}`
-            );
-            if (playerHit) {
-              setGameState(GameState.GAME_OVER);
-              onGameOver();
-              return currentExplosions;
-            }
+            setPlayerPosition((currentPlayerPosition) => {
+              const playerHit = explosionPositions.includes(
+                `${currentPlayerPosition.row},${currentPlayerPosition.col}`
+              );
+              if (playerHit) {
+                setGameState(GameState.GAME_OVER);
+                onGameOver();
+              }
+              return currentPlayerPosition;
+            });
 
             // Check if enemies are hit
             newEnemies = newEnemies.filter(
@@ -245,7 +247,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
       });
       return newGrid;
     });
-  }, [playerPosition, explodeBomb, moveEnemies, onWin, onGameOver]);
+  }, [explodeBomb, moveEnemies, onWin, onGameOver]);
 
   // Handle keyboard input
   const handleKeyPress = useCallback(
@@ -308,24 +310,26 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
     setBombs([]);
     setExplosions([]);
     setGameState(GameState.PLAYING);
-  }, [initializeGrid, initializeEnemies]);
+  }, []);
 
   // Start game loop
   useEffect(() => {
-    if (gameState === GameState.PLAYING) {
+    if (gameState === GameState.PLAYING && grid.length > 0) {
       gameLoopRef.current = window.setInterval(gameLoop, GAME_TICK_MS);
     } else {
       if (gameLoopRef.current) {
         clearInterval(gameLoopRef.current);
+        gameLoopRef.current = undefined;
       }
     }
 
     return () => {
       if (gameLoopRef.current) {
         clearInterval(gameLoopRef.current);
+        gameLoopRef.current = undefined;
       }
     };
-  }, [gameState, gameLoop]);
+  }, [gameState, gameLoop, grid.length]);
 
   // Add keyboard event listener
   useEffect(() => {
@@ -361,6 +365,20 @@ const GameScreen: React.FC<GameScreenProps> = ({ onWin, onGameOver }) => {
         return "bg-slate-800";
     }
   };
+
+  // Show loading state if grid is not initialized
+  if (grid.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-lg border border-cyan-400/20 shadow-2xl p-4">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-cyan-400 mb-4">
+            🎮 ゲームを読み込み中...
+          </h2>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center h-full bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 rounded-lg border border-cyan-400/20 shadow-2xl p-4">
